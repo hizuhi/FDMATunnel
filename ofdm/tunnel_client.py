@@ -71,8 +71,8 @@ def open_tun_interface(tun_device_filename):
     mode = IFF_TUN | IFF_NO_PI
 
     tun = os.open(tun_device_filename, os.O_RDWR)
-    ifs = ioctl(tun, TUNSETIFF, struct.pack("16sH", "gr%d", mode))
-    ifname = ifs[:16].strip("\x00")
+    ifs = ioctl(tun, TUNSETIFF, struct.pack("16sH", b"gr%d", mode))
+    ifname = ifs[:16].strip(b"\x00").decode("utf-8")
     return tun, ifname
 
 
@@ -100,18 +100,30 @@ def chr2num(ch):
 
 
 def get_addr(msg):
-    src_addr = list(map(ord, msg[12:16]))
-    dest_addr = list(map(ord, msg[16:20]))
+    # Handle both bytes and string input for Python 3 compatibility
+    if isinstance(msg, bytes):
+        src_addr = list(msg[12:16])
+        dest_addr = list(msg[16:20])
+    else:
+        src_addr = list(map(ord, msg[12:16]))
+        dest_addr = list(map(ord, msg[16:20]))
     return src_addr, dest_addr
 
 
 def add_header(header, payload):
     header = list2str(header)
+    # Ensure consistent data types for concatenation
+    if isinstance(payload, bytes):
+        header = header.encode("latin-1")
     return header + payload
 
 
 def parse_header(header):
-    header = list(map(ord, header))
+    # Handle both bytes and string input for Python 3 compatibility
+    if isinstance(header, bytes):
+        header = list(header)
+    else:
+        header = list(map(ord, header))
 
     pkt_cnt = header[0]
     src_addr = header[1:5]
@@ -334,6 +346,9 @@ class cs_mac(object):
                     self.tx_ack(pkt_cnt, dest_addr)
 
                 if not discard:
+                    # Ensure data is bytes for os.write
+                    if isinstance(data, str):
+                        data = data.encode("latin-1")
                     os.write(self.tun_fd, data)
 
     def main_loop(self):
