@@ -1,24 +1,24 @@
 #!/usr/bin/python3
 #
 # Copyright 2005,2006,2011 Free Software Foundation, Inc.
-# 
+#
 # This file is part of GNU Radio
-# 
+#
 # GNU Radio is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 2, or (at your option)
 # any later version.
-# 
+#
 # GNU Radio is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with GNU Radio; see the file COPYING.  If not, write to
 # the Free Software Foundation, Inc., 51 Franklin Street,
 # Boston, MA 02110-1301, USA.
-# 
+#
 
 
 # /////////////////////////////////////////////////////////////////////////////
@@ -33,23 +33,22 @@
 # /////////////////////////////////////////////////////////////////////////////
 
 
-from gnuradio import gr, digital
-from gnuradio import eng_notation
-from gnuradio.eng_option import eng_option
+import os
+import struct
+import sys
+import threading
+import time
 from optparse import OptionParser
+
+from gnuradio import eng_notation, gr
+from gnuradio.eng_option import eng_option
 
 # from current dir
 from receive_path import receive_path
 from transmit_path import transmit_path
-from uhd_interface import uhd_transmitter
-from uhd_interface import uhd_receiver
-
-import os, sys
-import random, time, struct
-import threading
+from uhd_interface import uhd_receiver, uhd_transmitter
 
 from constant_server import *
-
 
 # print os.getpid()
 # raw_input('Attach and press enter')
@@ -62,6 +61,7 @@ from constant_server import *
 #   See /usr/src/linux/Documentation/networking/tuntap.txt
 #
 # /////////////////////////////////////////////////////////////////////////////
+
 
 # Linux specific...
 # TUNSETIFF ifr flags from <linux/tun_if.h>
@@ -79,12 +79,16 @@ def open_tun_interface(tun_device_filename):
 def tun_config(ifname, tun_ip=TUN_IP):
     os.system("ip link set %s up" % ifname)
     os.system("ip addr add %s dev %s" % (tun_ip, ifname))
-    os.system("route add -net %s netmask 255.255.255.255 %s" % (DEST_ADDRS[TARGET_USER], ifname))
+    os.system(
+        "route add -net %s netmask 255.255.255.255 %s"
+        % (DEST_ADDRS[TARGET_USER], ifname)
+    )
 
 
 # /////////////////////////////////////////////////////////////////////////////
 #                             packet process
 # /////////////////////////////////////////////////////////////////////////////
+
 
 def list2str(l):
     s = list(map(chr, l))
@@ -130,18 +134,29 @@ class my_top_block(gr.top_block):
     def __init__(self, callback, options):
         gr.top_block.__init__(self)
 
-        self.source = uhd_receiver(options.args,
-                                   options.bandwidth,
-                                   options.rx_freq,
-                                   options.lo_offset, options.rx_gain,
-                                   options.spec, options.antenna,
-                                   options.clock_source, options.verbose)
+        self.source = uhd_receiver(
+            options.args,
+            options.bandwidth,
+            options.rx_freq,
+            options.lo_offset,
+            options.rx_gain,
+            options.spec,
+            options.antenna,
+            options.clock_source,
+            options.verbose,
+        )
 
-        self.sink = uhd_transmitter(options.args,
-                                    options.bandwidth, options.tx_freq,
-                                    options.lo_offset, options.tx_gain,
-                                    options.spec, options.antenna,
-                                    options.clock_source, options.verbose)
+        self.sink = uhd_transmitter(
+            options.args,
+            options.bandwidth,
+            options.tx_freq,
+            options.lo_offset,
+            options.tx_gain,
+            options.spec,
+            options.antenna,
+            options.clock_source,
+            options.verbose,
+        )
 
         self.txpath = transmit_path(options)
         self.rxpath = receive_path(callback, options)
@@ -163,9 +178,9 @@ class my_top_block(gr.top_block):
         self.u_src.set_freq(target_freq)
 
     def set_bandwidth(self, bandwidth):
-        '''
+        """
         set usrp tx/rx bandwidth
-        '''
+        """
         self.lock()
         self.sink.u.set_samp_rate(bandwidth)
         self.source.u.set_samp_rate(bandwidth)
@@ -175,6 +190,7 @@ class my_top_block(gr.top_block):
 # /////////////////////////////////////////////////////////////////////////////
 #                           Carrier Sense MAC
 # /////////////////////////////////////////////////////////////////////////////
+
 
 class cs_mac(object):
     """
@@ -188,14 +204,18 @@ class cs_mac(object):
     is just an example.
     """
 
-    def __init__(self, tun_fd, verbose=False, ):
+    def __init__(
+        self,
+        tun_fd,
+        verbose=False,
+    ):
         self.tun_fd = tun_fd  # file descriptor for TUN/TAP interface
         self.verbose = verbose
         self.tb = None  # top block (access to PHY)
         self.tx_time = -1
 
-        self.src_addr = [int(s) for s in SRC_ADDR.split('.')]
-        self.dest_addr = [int(s) for s in DEST_ADDRS[TARGET_USER].split('.')]
+        self.src_addr = [int(s) for s in SRC_ADDR.split(".")]
+        self.dest_addr = [int(s) for s in DEST_ADDRS[TARGET_USER].split(".")]
 
         self.tx_id = 0
         self.tx_pdu = None
@@ -214,9 +234,9 @@ class cs_mac(object):
         self.tb = tb
 
     def rx_change_bandwidth(self, control):
-        '''
+        """
         TO DO
-        '''
+        """
         return False
 
     def rx_ack(self, control):
@@ -225,31 +245,31 @@ class cs_mac(object):
         return False
 
     def rx_dummy(self, pkt_cnt, src_addr):
-        '''
+        """
         TODO
-        '''
+        """
         return False
 
     def tx_change_bandwidth(self, payload):
-        '''
+        """
         TO DO
-        '''
+        """
         return False
 
     def tx_accept_pkt(self, dest_addr):
-        '''
+        """
         TODO
-        '''
+        """
         if dest_addr == self.dest_addr:
             return True
         return False
 
     def tx_process(self, payload, dest_addr):
-        '''TODO'''
+        """TODO"""
         return payload
 
     def tx_to_server(self, dest_addr):
-        '''TODO'''
+        """TODO"""
         return True
 
     def tx_ack(self, pkt_cnt, dest_addr):
@@ -280,16 +300,16 @@ class cs_mac(object):
             if dest_addr == self.src_addr:
                 if DEBUG:
                     print("Data for me! pkt no: %d" % pkt_cnt)
-                    print('Recv time: %.6f' % time.time())
+                    print("Recv time: %.6f" % time.time())
 
                 discard = False
 
                 # which kind of pkt?
                 if self.rx_change_bandwidth(control):  # it's a control pkt
-                    '''
+                    """
                         change bandwidth
                         TODO
-                    '''
+                    """
                     if DEBUG:
                         print("recv change bandwidth pkt")
                     discard = True
@@ -335,7 +355,7 @@ class cs_mac(object):
                 payload = os.read(self.tun_fd, 10 * 1024)
                 src_addr, dest_addr = get_addr(payload)
 
-                if not payload:     # something goes wrong
+                if not payload:  # something goes wrong
                     self.tb.txpath.send_pkt(eof=True)
                     return
 
@@ -346,10 +366,10 @@ class cs_mac(object):
 
                     # it's a control pkt?
                     if self.tx_change_bandwidth(payload):
-                        '''
+                        """
                         change bandwidth 
                         TODO
-                        '''
+                        """
                         control = CTL_CHANGE_BW
 
                     # pkt process: add header et.
@@ -370,7 +390,7 @@ class cs_mac(object):
 
         self.timer = threading.Timer(WAIT_INTERVAL, self.arq_fsm)
 
-        ''' 
+        """ 
         CSMA part
 
         delay = min_delay
@@ -381,7 +401,7 @@ class cs_mac(object):
                 delay = delay * 2       # exponential back-off
 
         self.tx_time = time.time()
-        '''
+        """
 
 
 # /////////////////////////////////////////////////////////////////////////////
@@ -396,21 +416,53 @@ def main():
     parser = OptionParser(option_class=eng_option, conflict_handler="resolve")
     expert_grp = parser.add_option_group("Expert")
 
-    parser.add_option("--target", type="string", default='',
-                      help="Which user to communicate:0,1,2... [default=%%default]")
+    parser.add_option(
+        "--target",
+        type="string",
+        default="",
+        help="Which user to communicate:0,1,2... [default=%%default]",
+    )
 
-    parser.add_option("-m", "--modulation", type="choice", choices=['bpsk', 'qpsk'],
-                      default='bpsk',
-                      help="Select modulation from: bpsk, qpsk [default=%%default]")
+    parser.add_option(
+        "-m",
+        "--modulation",
+        type="choice",
+        choices=["bpsk", "qpsk"],
+        default="bpsk",
+        help="Select modulation from: bpsk, qpsk [default=%%default]",
+    )
 
     parser.add_option("-v", "--verbose", action="store_true", default=False)
-    expert_grp.add_option("-c", "--carrier-threshold", type="eng_float", default=30,
-                          help="set carrier detect threshold (dB) [default=%default]")
-    expert_grp.add_option("", "--tun-device-filename", default="/dev/net/tun",
-                          help="path to tun device file [default=%default]")
+    expert_grp.add_option(
+        "-c",
+        "--carrier-threshold",
+        type="eng_float",
+        default=30,
+        help="set carrier detect threshold (dB) [default=%default]",
+    )
+    expert_grp.add_option(
+        "",
+        "--tun-device-filename",
+        default="/dev/net/tun",
+        help="path to tun device file [default=%default]",
+    )
 
-    digital.ofdm_mod.add_options(parser, expert_grp)
-    digital.ofdm_demod.add_options(parser, expert_grp)
+    # Modern GNU Radio 3.11 OFDM modules don't have add_options methods
+    # OFDM parameters are now configured directly in transmit/receive paths
+    expert_grp.add_option(
+        "",
+        "--fft-length",
+        type="int",
+        default=64,
+        help="set OFDM FFT length [default=%default]",
+    )
+    expert_grp.add_option(
+        "",
+        "--cp-length",
+        type="int",
+        default=16,
+        help="set OFDM cyclic prefix length [default=%default]",
+    )
     transmit_path.add_options(parser, expert_grp)
     receive_path.add_options(parser, expert_grp)
     uhd_receiver.add_options(parser)
@@ -426,12 +478,12 @@ def main():
         parser.print_help(sys.stderr)
         sys.exit(1)
 
-    '''
+    """
         if options.rx_freq is None or options.tx_freq is None:
         sys.stderr.write("You must specify -f FREQ or --freq FREQ\n")
         parser.print_help(sys.stderr)
         sys.exit(1)
-    '''
+    """
 
     global TARGET_USER
     TARGET_USER = int(options.target)
@@ -484,7 +536,7 @@ def main():
     tb.wait()  # wait for it to finish
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:

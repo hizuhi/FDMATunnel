@@ -1,55 +1,72 @@
 #!/usr/bin/python3
 #
 # Copyright 2005,2006,2011 Free Software Foundation, Inc.
-# 
+#
 # This file is part of GNU Radio
-# 
+#
 # GNU Radio is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; either version 3, or (at your option)
 # any later version.
-# 
+#
 # GNU Radio is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with GNU Radio; see the file COPYING.  If not, write to
 # the Free Software Foundation, Inc., 51 Franklin Street,
 # Boston, MA 02110-1301, USA.
-# 
-
-from gnuradio import gr
-from gnuradio import eng_notation
-from gnuradio import blocks
-from gnuradio import digital
+#
 
 import copy
-import sys
+
+from gnuradio import blocks, digital, gr
 
 # /////////////////////////////////////////////////////////////////////////////
 #                              transmit path
 # /////////////////////////////////////////////////////////////////////////////
 
-class transmit_path(gr.hier_block2): 
+
+class transmit_path(gr.hier_block2):
     def __init__(self, options):
-        '''
+        """
         See below for what options should hold
-        '''
+        """
 
-        gr.hier_block2.__init__(self, "transmit_path",
-                                gr.io_signature(0, 0, 0),
-                                gr.io_signature(1, 1, gr.sizeof_gr_complex))
+        gr.hier_block2.__init__(
+            self,
+            "transmit_path",
+            gr.io_signature(0, 0, 0),
+            gr.io_signature(1, 1, gr.sizeof_gr_complex),
+        )
 
-        options = copy.copy(options)    # make a copy so we can destructively modify
+        options = copy.copy(options)  # make a copy so we can destructively modify
 
-        self._verbose      = options.verbose      # turn verbose mode on/off
-        self._tx_amplitude = options.tx_amplitude # digital amp sent to radio
+        self._verbose = options.verbose  # turn verbose mode on/off
+        self._tx_amplitude = options.tx_amplitude  # digital amp sent to radio
 
-        self.ofdm_tx = digital.ofdm_mod(options,
-                                        msgq_limit=4,
-                                        pad_for_usrp=False)
+        # Modern GNU Radio 3.11 OFDM transmitter
+        # Convert options to new API parameters
+        fft_len = getattr(options, "fft_length", 64)
+        cp_len = getattr(options, "cp_length", 16)
+
+        # Create packet input source for compatibility with old send_pkt interface
+        self.packet_source = blocks.vector_source_b([], False, 1, [])
+
+        # Add packet length tags for OFDM framing
+        self.stream_to_tagged_stream = blocks.stream_to_tagged_stream(
+            gr.sizeof_char,
+            1,
+            64,
+            "packet_length",  # Default packet length
+        )
+
+        # Create OFDM transmitter with default parameters
+        self.ofdm_tx = digital.ofdm_tx(
+            fft_len=fft_len, cp_len=cp_len, packet_length_tag_key="packet_length"
+        )
 
         self.amp = blocks.multiply_const_cc(1)
         self.set_tx_amplitude(self._tx_amplitude)
@@ -59,39 +76,74 @@ class transmit_path(gr.hier_block2):
             self._print_verbage()
 
         # Create and setup transmit path flow graph
-        self.connect(self.ofdm_tx, self.amp, self)
+        self.connect(
+            self.packet_source,
+            self.stream_to_tagged_stream,
+            self.ofdm_tx,
+            self.amp,
+            self,
+        )
 
     def set_tx_amplitude(self, ampl):
         """
         Sets the transmit amplitude sent to the USRP
-        
+
         Args:
             : ampl 0 <= ampl < 1.0.  Try 0.10
         """
         self._tx_amplitude = max(0.0, min(ampl, 1))
         self.amp.set_k(self._tx_amplitude)
-        
-    def send_pkt(self, payload='', eof=False):
+
+    def send_pkt(self, payload="", eof=False):
         """
-        Calls the transmitter method to send a packet
+        Sends a packet through the OFDM transmitter
+        Compatible interface with old GNU Radio API
         """
-        return self.ofdm_tx.send_pkt(payload, eof)
-        
+        if eof:
+            # Handle end-of-file case
+            return True
+
+        if isinstance(payload, str):
+            # Convert string to bytes for Python 3 compatibility
+            payload = payload.encode("latin-1")
+
+        # Convert payload to list of integers for vector_source_b
+        data = list(payload) if payload else []
+
+        # Update the packet source with new data
+        # Note: This is a simplified implementation
+        # In a real application, you might want to use a message queue
+        self.packet_source.set_data(data, [])
+
+        return True
+
     def add_options(normal, expert):
         """
         Adds transmitter-specific options to the Options Parser
         """
-        normal.add_option("", "--tx-amplitude", type="eng_float",
-                          default=0.1, metavar="AMPL",
-                          help="set transmitter digital amplitude: 0 <= AMPL < 1.0 [default=%default]")
-        normal.add_option("-W", "--bandwidth", type="eng_float",
-                          default=500e3,
-                          help="set symbol bandwidth [default=%default]")
-        normal.add_option("-v", "--verbose", action="store_true",
-                          default=False)
-        expert.add_option("", "--log", action="store_true",
-                          default=False,
-                          help="Log all parts of flow graph to file (CAUTION: lots of data)")
+        normal.add_option(
+            "",
+            "--tx-amplitude",
+            type="eng_float",
+            default=0.1,
+            metavar="AMPL",
+            help="set transmitter digital amplitude: 0 <= AMPL < 1.0 [default=%default]",
+        )
+        normal.add_option(
+            "-W",
+            "--bandwidth",
+            type="eng_float",
+            default=500e3,
+            help="set symbol bandwidth [default=%default]",
+        )
+        normal.add_option("-v", "--verbose", action="store_true", default=False)
+        expert.add_option(
+            "",
+            "--log",
+            action="store_true",
+            default=False,
+            help="Log all parts of flow graph to file (CAUTION: lots of data)",
+        )
 
     # Make a static method to call before instantiation
     add_options = staticmethod(add_options)
@@ -101,4 +153,3 @@ class transmit_path(gr.hier_block2):
         Prints information about the transmit path
         """
         print("Tx amplitude     %s" % (self._tx_amplitude))
-        
