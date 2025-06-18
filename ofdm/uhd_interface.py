@@ -85,9 +85,9 @@ class uhd_interface:
             # if no gain was specified, use the mid-point in dB
             g = self.u.get_gain_range()
             gain = float(g.start()+g.stop())/2
-            print "\nNo gain specified."
-            print "Setting gain to %f (from [%f, %f])" % \
-                (gain, g.start(), g.stop())
+            print("\nNo gain specified.")
+            print("Setting gain to %f (from [%f, %f])" % \
+                (gain, g.start(), g.stop()))
         
         self.u.set_gain(gain, 0)
         return gain
@@ -153,15 +153,15 @@ class uhd_transmitter(uhd_interface, gr.hier_block2):
         """
         Prints information about the UHD transmitter
         """
-        print "\nUHD Transmitter:"
-        print "UHD Args:     %s"    % (self._args)
-        print "Freq:         %sHz"  % (eng_notation.num_to_str(self._freq))
-        print "LO Offset:    %sHz"  % (eng_notation.num_to_str(self._lo_offset))
-        print "Gain:         %f dB" % (self._gain)
-        print "Sample Rate:  %ssps" % (eng_notation.num_to_str(self._rate))
-        print "Antenna:      %s"    % (self._ant)
-        print "Subdev Sec:   %s"    % (self._spec)
-        print "Clock Source: %s"    % (self._clock_source)
+        print("\nUHD Transmitter:")
+        print("UHD Args:     %s"    % (self._args))
+        print("Freq:         %sHz"  % (eng_notation.num_to_str(self._freq)))
+        print("LO Offset:    %sHz"  % (eng_notation.num_to_str(self._lo_offset)))
+        print("Gain:         %f dB" % (self._gain))
+        print("Sample Rate:  %ssps" % (eng_notation.num_to_str(self._rate)))
+        print("Antenna:      %s"    % (self._ant))
+        print("Subdev Sec:   %s"    % (self._spec))
+        print("Clock Source: %s"    % (self._clock_source))
 
 
 
@@ -213,13 +213,13 @@ class uhd_receiver(uhd_interface, gr.hier_block2):
         """
         Prints information about the UHD transmitter
         """
-        print "\nUHD Receiver:"
-        print "UHD Args:     %s"    % (self._args)
-        print "Freq:         %sHz"  % (eng_notation.num_to_str(self._freq))
-        print "LO Offset:    %sHz"  % (eng_notation.num_to_str(self._lo_offset))
-        print "Gain:         %f dB" % (self._gain)
-        print "Sample Rate:  %ssps" % (eng_notation.num_to_str(self._rate))
-        print "Antenna:      %s"    % (self._ant)
-        print "Subdev Sec:   %s"    % (self._spec)
-        print "Clock Source: %s"    % (self._clock_source)
+        print("\nUHD Receiver:")
+        print("UHD Args:     %s"    % (self._args))
+        print("Freq:         %sHz"  % (eng_notation.num_to_str(self._freq)))
+        print("LO Offset:    %sHz"  % (eng_notation.num_to_str(self._lo_offset)))
+        print("Gain:         %f dB" % (self._gain))
+        print("Sample Rate:  %ssps" % (eng_notation.num_to_str(self._rate)))
+        print("Antenna:      %s"    % (self._ant))
+        print("Subdev Sec:   %s"    % (self._spec))
+        print("Clock Source: %s"    % (self._clock_source))
 

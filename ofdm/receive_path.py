@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #
 # Copyright 2005,2006,2011 Free Software Foundation, Inc.
 # 
@@ -35,9 +35,9 @@ import sys
 class receive_path(gr.hier_block2):
     def __init__(self, rx_callback, options):
 
-	gr.hier_block2.__init__(self, "receive_path",
-				gr.io_signature(1, 1, gr.sizeof_gr_complex),
-				gr.io_signature(0, 0, 0))
+        gr.hier_block2.__init__(self, "receive_path",
+                                gr.io_signature(1, 1, gr.sizeof_gr_complex),
+                                gr.io_signature(0, 0, 0))
 
 
         options = copy.copy(options)    # make a copy so we can destructively modify

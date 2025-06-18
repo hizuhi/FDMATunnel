@@ -28,14 +28,14 @@ try:
     import scipy
     from scipy import fftpack
 except ImportError:
-    print "Error: Program requires scipy (see: www.scipy.org)."
+    print("Error: Program requires scipy (see: www.scipy.org).")
     sys.exit(1)
 
 try:
     from pylab import *
     from matplotlib.font_manager import fontManager, FontProperties
 except ImportError:
-    print "Error: Program requires matplotlib (see: matplotlib.sourceforge.net)."
+    print("Error: Program requires matplotlib (see: matplotlib.sourceforge.net).")
     sys.exit(1)
 
 matplotlib.interactive(True)
@@ -92,7 +92,7 @@ class draw_constellation:
         acq_data = scipy.fromfile(self.h_acq_file, dtype=scipy.complex64, count=self.occ_tones)
         fft_data = scipy.fromfile(self.h_fft_file, dtype=scipy.complex64, count=self.fft_size)
         if(len(acq_data) == 0):
-            print "End of File"
+            print("End of File")
         else:
             self.acq_data_reals = [r.real for r in acq_data]
             self.acq_data_imags = [i.imag for i in acq_data]

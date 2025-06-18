@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #
 # Copyright 2005,2006,2011,2013 Free Software Foundation, Inc.
 # 
@@ -91,7 +91,7 @@ def main():
     
     r = gr.enable_realtime_scheduling()
     if r != gr.RT_OK:
-        print "Warning: failed to enable realtime scheduling"
+        print("Warning: failed to enable realtime scheduling")
 
     tb.start()                       # start flow graph
     
@@ -121,14 +121,14 @@ def main():
         if pktno == 84:
             t1 = time.time()
         if pktno == 100:
-            print "bandwidth_change"
+            print("bandwidth_change")
             tb.set_bandwidth(9000000)
             t2 = time.time()
 
     send_pkt(eof=True)
     time.sleep(2)               # allow time for queued packets to be sent
     tb.wait()                   # wait for it to finish
-    print "%.6f" % (t2 - t1)
+    print("%.6f" % (t2 - t1))
 
 if __name__ == '__main__':
     try:

@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #
 # Copyright 2005,2006,2011 Free Software Foundation, Inc.
 # 
@@ -87,21 +87,21 @@ def tun_config(ifname, tun_ip=TUN_IP):
 # /////////////////////////////////////////////////////////////////////////////
 
 def list2str(l):
-    s = map(chr, l)
+    s = list(map(chr, l))
     s = "".join(s)
 
     return s
 
 
 def chr2num(ch):
-    n = map(ord, ch)
+    n = list(map(ord, ch))
 
     return n
 
 
 def get_addr(msg):
-    src_addr = map(ord, msg[12:16])
-    dest_addr = map(ord, msg[16:20])
+    src_addr = list(map(ord, msg[12:16]))
+    dest_addr = list(map(ord, msg[16:20]))
     return src_addr, dest_addr
 
 
@@ -111,7 +111,7 @@ def add_header(header, payload):
 
 
 def parse_header(header):
-    header = map(ord, header)
+    header = list(map(ord, header))
 
     pkt_cnt = header[0]
     src_addr = header[1:5]
@@ -268,19 +268,19 @@ class cs_mac(object):
             payload: contents of the packet (string)
         """
         if self.verbose:
-            print "Rx: ok = %r  len(payload) = %4d\n\n" % (ok, len(payload))
+            print("Rx: ok = %r  len(payload) = %4d\n\n" % (ok, len(payload)))
         if ok:
             header = payload[0:HEADER_LEN]
             data = payload[HEADER_LEN:]
 
             pkt_cnt, src_addr, dest_addr, control = parse_header(header)
             if DEBUG:
-                print "dest_addr", dest_addr
+                print("dest_addr", dest_addr)
 
             if dest_addr == self.src_addr:
                 if DEBUG:
-                    print "Data for me! pkt no: %d" % pkt_cnt
-                    print 'Recv time: %.6f' % time.time()
+                    print("Data for me! pkt no: %d" % pkt_cnt)
+                    print('Recv time: %.6f' % time.time())
 
                 discard = False
 
@@ -291,12 +291,12 @@ class cs_mac(object):
                         TODO
                     '''
                     if DEBUG:
-                        print "recv change bandwidth pkt"
+                        print("recv change bandwidth pkt")
                     discard = True
 
                 elif self.rx_ack(control):  # it's a ack pkt
                     if DEBUG:
-                        print "recv ack data"
+                        print("recv ack data")
                     discard = True
                     # it's  a correct ack data
                     if pkt_cnt == self.tx_id:
@@ -310,7 +310,7 @@ class cs_mac(object):
                     # it's dump, we discard it, but still send ack
                     if pkt_cnt == self.last_rx_id:
                         if DEBUG:
-                            print "Recv dump pkt!"
+                            print("Recv dump pkt!")
                         discard = True
                     else:
                         self.last_rx_id = pkt_cnt
@@ -359,14 +359,14 @@ class cs_mac(object):
 
         # trans data
         if self.verbose:
-            print "Send time: %.6f" % time.time()
+            print("Send time: %.6f" % time.time())
 
         self.tb.txpath.send_pkt(self.tx_pdu)
         self.recv_ack = 0
         # self.tb.txpath.send_pkt(data)
 
         if self.verbose:
-            print "Tx: len(payload) = %4d" % (len(payload),)
+            print("Tx: len(payload) = %4d" % (len(payload),))
 
         self.timer = threading.Timer(WAIT_INTERVAL, self.arq_fsm)
 
@@ -422,7 +422,7 @@ def main():
         sys.exit(1)
 
     if options.target not in users:
-        print "Error: You must specify correct target user!"
+        print("Error: You must specify correct target user!")
         parser.print_help(sys.stderr)
         sys.exit(1)
 
@@ -446,7 +446,7 @@ def main():
         realtime = True
     else:
         realtime = False
-        print "Note: failed to enable realtime scheduling"
+        print("Note: failed to enable realtime scheduling")
 
     # instantiate the MAC
     mac = cs_mac(tun_fd, verbose=True)
@@ -460,20 +460,20 @@ def main():
 
     mac.set_flow_graph(tb)  # give the MAC a handle for the PHY
 
-    print "modulation:     %s" % (options.modulation,)
-    print "freq:           %s" % (eng_notation.num_to_str(options.tx_freq))
+    print("modulation:     %s" % (options.modulation,))
+    print("freq:           %s" % (eng_notation.num_to_str(options.tx_freq)))
 
     tb.rxpath.set_carrier_threshold(options.carrier_threshold)
-    print "Carrier sense threshold:", options.carrier_threshold, "dB"
+    print("Carrier sense threshold:", options.carrier_threshold, "dB")
 
-    print
-    print "Allocated virtual ethernet interface: %s" % (tun_ifname,)
-    print "You must now use ifconfig to set its IP address. E.g.,"
-    print
-    print "  $ sudo ifconfig %s 192.168.200.1" % (tun_ifname,)
-    print
-    print "Be sure to use a different address in the same subnet for each machine."
-    print
+    print()
+    print("Allocated virtual ethernet interface: %s" % (tun_ifname,))
+    print("You must now use ifconfig to set its IP address. E.g.,")
+    print()
+    print("  $ sudo ifconfig %s 192.168.200.1" % (tun_ifname,))
+    print()
+    print("Be sure to use a different address in the same subnet for each machine.")
+    print()
 
     tb.start()  # Start executing the flow graph (runs in separate threads)
 

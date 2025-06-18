@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #
 # Copyright 2005,2006,2011 Free Software Foundation, Inc.
 # 
@@ -38,9 +38,9 @@ class transmit_path(gr.hier_block2):
         See below for what options should hold
         '''
 
-	gr.hier_block2.__init__(self, "transmit_path",
-				gr.io_signature(0, 0, 0),
-				gr.io_signature(1, 1, gr.sizeof_gr_complex))
+        gr.hier_block2.__init__(self, "transmit_path",
+                                gr.io_signature(0, 0, 0),
+                                gr.io_signature(1, 1, gr.sizeof_gr_complex))
 
         options = copy.copy(options)    # make a copy so we can destructively modify
 
@@ -100,5 +100,5 @@ class transmit_path(gr.hier_block2):
         """
         Prints information about the transmit path
         """
-        print "Tx amplitude     %s" % (self._tx_amplitude)
+        print("Tx amplitude     %s" % (self._tx_amplitude))
         

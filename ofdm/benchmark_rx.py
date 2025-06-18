@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #
 # Copyright 2006,2007,2011,2013 Free Software Foundation, Inc.
 # 
@@ -74,7 +74,7 @@ def main():
         (pktno,) = struct.unpack('!H', payload[0:2])
         if ok:
             n_right += 1
-        print "ok: %r \t pktno: %d \t n_rcvd: %d \t n_right: %d" % (ok, pktno, n_rcvd, n_right)
+        print("ok: %r \t pktno: %d \t n_rcvd: %d \t n_right: %d" % (ok, pktno, n_rcvd, n_right))
 
         if 0:
             printlst = list()
@@ -85,8 +85,8 @@ def main():
                 printlst.append(t)
             printable = ''.join(printlst)
 
-            print printable
-            print "\n"
+            print(printable)
+            print("\n")
 
     parser = OptionParser(option_class=eng_option, conflict_handler="resolve")
     expert_grp = parser.add_option_group("Expert")
@@ -112,7 +112,7 @@ def main():
 
     r = gr.enable_realtime_scheduling()
     if r != gr.RT_OK:
-        print "Warning: failed to enable realtime scheduling"
+        print("Warning: failed to enable realtime scheduling")
 
     tb.start()                      # start flow graph
     tb.wait()                       # wait for it to finish

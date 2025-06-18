@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 #
 # Copyright 2010,2011 Free Software Foundation, Inc.
 # 
@@ -40,7 +40,7 @@ class my_top_block(gr.top_block):
         power_in_signal = abs(options.tx_amplitude)**2
         noise_power = power_in_signal/SNR
         noise_voltage = math.sqrt(noise_power)
-        print "Noise voltage: ", noise_voltage
+        print("Noise voltage: ", noise_voltage)
 
         frequency_offset = options.frequency_offset / options.fft_length
 
@@ -100,7 +100,7 @@ def main():
 
     r = gr.enable_realtime_scheduling()
     if r != gr.RT_OK:
-        print "Warning: Failed to enable realtime scheduling."
+        print("Warning: Failed to enable realtime scheduling.")
 
     tb.start()        # start flow graph
     tb.wait()         # wait for it to finish
