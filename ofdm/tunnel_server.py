@@ -307,12 +307,12 @@ class cs_mac(object):
 
             pkt_cnt, src_addr, dest_addr, control = parse_header(header)
             if DEBUG:
-                print("dest_addr", dest_addr)
+                print("[DEBUG] dest_addr", dest_addr)
 
             if dest_addr == self.src_addr:
                 if DEBUG:
-                    print("Data for me! pkt no: %d" % pkt_cnt)
-                    print("Recv time: %.6f" % time.time())
+                    print("[DEBUG] Data for me! pkt no: %d" % pkt_cnt)
+                    print("[DEBUG] Recv time: %.6f" % time.time())
 
                 discard = False
 
@@ -323,12 +323,12 @@ class cs_mac(object):
                         TODO
                     """
                     if DEBUG:
-                        print("recv change bandwidth pkt")
+                        print("[DEBUG] recv change bandwidth pkt")
                     discard = True
 
                 elif self.rx_ack(control):  # it's a ack pkt
                     if DEBUG:
-                        print("recv ack data")
+                        print("[DEBUG] recv ack data")
                     discard = True
                     # it's  a correct ack data
                     if pkt_cnt == self.tx_id:
@@ -342,7 +342,7 @@ class cs_mac(object):
                     # it's dump, we discard it, but still send ack
                     if pkt_cnt == self.last_rx_id:
                         if DEBUG:
-                            print("Recv dump pkt!")
+                            print("[DEBUG] Recv dump pkt!")
                         discard = True
                     else:
                         self.last_rx_id = pkt_cnt

@@ -9,15 +9,15 @@ TUN_IP = "10.0.0.1"
 SRC_ADDR = "10.0.0.1"
 
 # USRP params
-NUM_USRP = 2
-ADDR_USRPS = ["addr=192.168.10.2", "addr=192.168.10.4"]	# ip
-TXFREQ_USRPS = [900000000.0, 20000000000.0]			    # frequence 900M/2G
-RXFREQ_USRPS = [9000000.0, 20000000000.0]			    # frequence 900M/2G
-BAND_USRPS = [4000000.0, 4000000.0]		                # bandwidth 4M
+NUM_USRP = 1
+ADDR_USRPS = ["addr=192.168.10.2"]
+TXFREQ_USRPS = [25e6]			    
+RXFREQ_USRPS = [20e6]			    
+BAND_USRPS = [25e3]		      
 
 # -------- UD params -------
 # trans data by USRP 1/2
-DEST_ADDRS = ["10.0.0.2", "10.0.0.3"]
+DEST_ADDRS = ["10.0.0.2"]
 
 # packet params
 HEADER_LEN = 10
@@ -31,4 +31,4 @@ CTL_DUMMY = 3
 WAIT_INTERVAL = 0.016
 
 # debug
-DEBUG = 0
+DEBUG = 1

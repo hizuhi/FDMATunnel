@@ -171,6 +171,9 @@ class uhd_transmitter(uhd_interface, gr.hier_block2):
 
 
 class uhd_receiver(uhd_interface, gr.hier_block2):
+    """
+    该类是USRP Source或Sink的Wrapper
+    """
     def __init__(self, args, bandwidth, freq=None, lo_offset=None, gain=None,
                  spec=None, antenna=None, clock_source=None, verbose=False):
         gr.hier_block2.__init__(self, "uhd_receiver",
