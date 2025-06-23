@@ -76,13 +76,13 @@ def open_tun_interface(tun_device_filename):
     return tun, ifname
 
 
-def tun_config(ifname, tun_ip=TUN_IP):
+def tun_config(ifname, tun_ip="10.0.0.1"):
     os.system("ip link set %s up" % ifname)
-    os.system("ip addr add %s dev %s" % (tun_ip, ifname))
-    os.system(
-        "route add -net %s netmask 255.255.255.255 %s"
-        % (DEST_ADDRS[TARGET_USER], ifname)
-    )
+    os.system("ip addr add %s/24 dev %s" % (tun_ip, ifname))
+    # Add route to destination through tunnel interface
+    # Use /32 for specific host routing to avoid conflicts
+    dest_ip = "10.0.0.2"  # Client IP address
+    os.system("ip route add %s/32 dev %s" % (dest_ip, ifname))
 
 
 # /////////////////////////////////////////////////////////////////////////////

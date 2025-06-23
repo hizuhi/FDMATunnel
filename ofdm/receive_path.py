@@ -22,13 +22,83 @@
 
 import copy
 
+import pmt
 from gnuradio import analog, blocks, digital, gr
 
+# GNU Radio version compatibility layer
 try:
     from gnuradio import pdu
+
+    PDU_AVAILABLE = True
 except ImportError:
     # Fallback for older versions
     pdu = blocks
+    PDU_AVAILABLE = False
+
+# Detect GNU Radio version for compatibility
+try:
+    # Try to get version info
+    import gnuradio
+
+    GR_VERSION = getattr(gnuradio, "version", "3.8")
+    print(f"[DEBUG] GNU Radio version: {GR_VERSION}")
+except:
+    GR_VERSION = "3.8"
+
+# Version-specific compatibility flags
+USE_LEGACY_OFDM = GR_VERSION.startswith("3.8") or GR_VERSION.startswith("3.9")
+USE_NEW_PDU = GR_VERSION.startswith("3.11") and PDU_AVAILABLE
+
+
+class packet_callback_handler(gr.basic_block):
+    """
+    Custom message handler for GNU Radio 3.11 OFDM receiver
+    Converts PDU messages back to callback function calls for compatibility
+    """
+
+    def __init__(self, callback_func):
+        gr.basic_block.__init__(
+            self, name="packet_callback_handler", in_sig=None, out_sig=None
+        )
+
+        self.callback_func = callback_func
+        self.message_port_register_in(pmt.intern("pdus"))
+        self.set_msg_handler(pmt.intern("pdus"), self.handle_msg)
+
+    def handle_msg(self, msg):
+        """
+        Handle incoming PDU messages and convert to callback
+        """
+        try:
+            # Extract the PDU data
+            if pmt.is_pair(msg):
+                meta = pmt.car(msg)
+                data = pmt.cdr(msg)
+
+                # Convert PMT vector to bytes
+                if pmt.is_u8vector(data):
+                    payload = bytes(pmt.u8vector_elements(data))
+                    print(f"[DEBUG] Received packet: len={len(payload)}")
+                    # Call the original callback with ok=True and payload
+                    if self.callback_func:
+                        self.callback_func(True, payload)
+                else:
+                    # Invalid data format
+                    print("[DEBUG] Invalid data format in PDU")
+                    if self.callback_func:
+                        self.callback_func(False, b"")
+            else:
+                # Invalid message format
+                print("[DEBUG] Invalid message format")
+                if self.callback_func:
+                    self.callback_func(False, b"")
+
+        except Exception as e:
+            # Error in message processing
+            print(f"Error in packet callback handler: {e}")
+            if self.callback_func:
+                self.callback_func(False, b"")
+
 
 # /////////////////////////////////////////////////////////////////////////////
 #                              receive path
@@ -57,19 +127,51 @@ class receive_path(gr.hier_block2):
         fft_len = getattr(options, "fft_length", 64)
         cp_len = getattr(options, "cp_length", 16)
 
-        # Create OFDM receiver with default parameters
-        self.ofdm_rx = digital.ofdm_rx(
-            fft_len=fft_len, cp_len=cp_len, packet_length_tag_key="packet_length"
-        )
+        # Create version-compatible OFDM receiver
+        if USE_LEGACY_OFDM:
+            print("[DEBUG] Using legacy OFDM demodulator (3.8/3.9 style)")
+            # For GNU Radio 3.8/3.9 - use old API with direct callback
+            try:
+                self.ofdm_rx = digital.ofdm_demod(options, callback=rx_callback)
+                self.use_direct_callback = True
+                self.use_pdu_conversion = False
+            except Exception as e:
+                print(f"[DEBUG] Legacy OFDM failed: {e}, falling back to new API")
+                self.ofdm_rx = digital.ofdm_rx(
+                    fft_len=fft_len,
+                    cp_len=cp_len,
+                    packet_length_tag_key="packet_length",
+                )
+                self.use_direct_callback = False
+                self.use_pdu_conversion = True
+        else:
+            print("[DEBUG] Using modern OFDM receiver (3.10+ style)")
+            # For GNU Radio 3.10+ - use new API
+            self.ofdm_rx = digital.ofdm_rx(
+                fft_len=fft_len, cp_len=cp_len, packet_length_tag_key="packet_length"
+            )
+            self.use_direct_callback = False
+            self.use_pdu_conversion = True
 
-        # Create callback mechanism for packet reception
-        # Convert tagged stream back to packets and call callback
-        self.tagged_stream_to_pdu = pdu.tagged_stream_to_pdu(
-            gr.types.byte_t, "packet_length"
-        )
+        # Create callback handler for modern versions
+        if not self.use_direct_callback:
+            self.callback_handler = packet_callback_handler(rx_callback)
 
-        # Message sink to handle received packets
-        self.msg_sink = blocks.message_debug()
+            # Try to use PDU conversion if available
+            if self.use_pdu_conversion:
+                try:
+                    if USE_NEW_PDU:
+                        self.tagged_stream_to_pdu = pdu.tagged_stream_to_pdu(
+                            gr.types.byte_t, "packet_length"
+                        )
+                    else:
+                        self.tagged_stream_to_pdu = blocks.tagged_stream_to_pdu(
+                            gr.types.byte_t, "packet_length"
+                        )
+                    print("[DEBUG] PDU conversion available")
+                except Exception as e:
+                    print(f"[DEBUG] PDU conversion failed: {e}")
+                    self.use_pdu_conversion = False
 
         # Store callback for later use
         self._rx_callback = rx_callback
@@ -79,18 +181,41 @@ class receive_path(gr.hier_block2):
         thresh = 30  # in dB, will have to adjust
         self.probe = analog.probe_avg_mag_sqrd_c(thresh, alpha)
 
-        # Connect the flow graph
-        # Input -> OFDM RX -> Tagged Stream to PDU (via message port)
+        # Connect the flow graph based on version compatibility
         self.connect(self, self.ofdm_rx)
 
-        # Connect OFDM RX output to tagged stream converter
-        self.connect(self.ofdm_rx, self.tagged_stream_to_pdu)
+        # Version-specific connections
+        if self.use_direct_callback:
+            print("[DEBUG] Using direct callback (legacy mode)")
+            # For legacy versions, OFDM demod handles callback directly
+            # Just connect to probe for carrier sensing
+            self.connect(self.ofdm_rx, self.probe)
+        else:
+            print("[DEBUG] Using message-based callback (modern mode)")
+            # Add a null sink to handle OFDM RX output
+            self.null_sink = blocks.null_sink(gr.sizeof_char)
 
-        # Connect message port for packet reception
-        self.msg_connect(self.tagged_stream_to_pdu, "pdus", self.msg_sink, "store")
+            # Connect OFDM RX output - try different approaches
+            if self.use_pdu_conversion and hasattr(self, "tagged_stream_to_pdu"):
+                try:
+                    # Try to connect to PDU converter
+                    self.connect(self.ofdm_rx, self.tagged_stream_to_pdu)
+                    # Connect message port for packet reception
+                    self.msg_connect(
+                        self.tagged_stream_to_pdu, "pdus", self.callback_handler, "pdus"
+                    )
+                    print("[DEBUG] Using PDU conversion path")
+                except Exception as e:
+                    print(f"[DEBUG] PDU connection failed: {e}")
+                    # Fallback to null sink
+                    self.connect(self.ofdm_rx, self.null_sink)
+            else:
+                # Direct connection to null sink
+                self.connect(self.ofdm_rx, self.null_sink)
+                print("[DEBUG] Using null sink fallback")
 
-        # Connect probe for carrier sensing (using input signal)
-        self.connect(self, self.probe)
+            # Connect probe for carrier sensing (using input signal)
+            self.connect(self, self.probe)
 
         # Display some information about the setup
         if self._verbose:

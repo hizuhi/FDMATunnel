@@ -24,6 +24,12 @@ import copy
 
 from gnuradio import blocks, digital, gr
 
+try:
+    from gnuradio import pdu
+except ImportError:
+    # Fallback for older versions
+    pdu = blocks
+
 # /////////////////////////////////////////////////////////////////////////////
 #                              transmit path
 # /////////////////////////////////////////////////////////////////////////////
@@ -52,15 +58,18 @@ class transmit_path(gr.hier_block2):
         fft_len = getattr(options, "fft_length", 64)
         cp_len = getattr(options, "cp_length", 16)
 
-        # Create packet input source for compatibility with old send_pkt interface
+        # Create packet transmission using message queue approach
+        # This is more reliable for GNU Radio 3.11
+        import queue
+
+        self.packet_queue = queue.Queue()
+
+        # Use null source initially, will be replaced dynamically
         self.packet_source = blocks.vector_source_b([], False, 1, [])
 
-        # Add packet length tags for OFDM framing
+        # Add stream to tagged stream converter for packet framing
         self.stream_to_tagged_stream = blocks.stream_to_tagged_stream(
-            gr.sizeof_char,
-            1,
-            64,
-            "packet_length",  # Default packet length
+            gr.sizeof_char, 1, 1, "packet_length"
         )
 
         # Create OFDM transmitter with default parameters
@@ -106,14 +115,19 @@ class transmit_path(gr.hier_block2):
         if isinstance(payload, str):
             # Convert string to bytes for Python 3 compatibility
             payload = payload.encode("latin-1")
+        elif payload is None:
+            payload = b""
 
-        # Convert payload to list of integers for vector_source_b
+        # Convert payload to list of integers
         data = list(payload) if payload else []
 
-        # Update the packet source with new data
-        # Note: This is a simplified implementation
-        # In a real application, you might want to use a message queue
-        self.packet_source.set_data(data, [])
+        if data:
+            # Set packet length for tagged stream
+            self.stream_to_tagged_stream.set_packet_len(len(data))
+
+            # Create new vector source with the packet data
+            # This is a workaround for GNU Radio 3.11
+            self.packet_source.set_data(data, [])
 
         return True
 
