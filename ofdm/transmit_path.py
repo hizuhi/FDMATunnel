@@ -72,9 +72,25 @@ class transmit_path(gr.hier_block2):
             gr.sizeof_char, 1, 1, "packet_length"
         )
 
-        # Create OFDM transmitter with default parameters
+        # # Create OFDM transmitter with default parameters
+        # self.ofdm_tx = digital.ofdm_tx(
+        #     fft_len=fft_len, cp_len=cp_len, packet_length_tag_key="packet_length"
+        # )
+
         self.ofdm_tx = digital.ofdm_tx(
-            fft_len=fft_len, cp_len=cp_len, packet_length_tag_key="packet_length"
+            fft_len=fft_len,
+            cp_len=(fft_len // 4),
+            packet_length_tag_key="packet_length",
+            occupied_carriers=((-4, -3, -2, -1, 1, 2, 3, 4),),
+            pilot_carriers=((-6, -5, 5, 6),),
+            pilot_symbols=((-1, 1, -1, 1),),
+            sync_word1=None,
+            sync_word2=None,
+            bps_header=1,
+            bps_payload=2,
+            rolloff=0,
+            debug_log=False,
+            scramble_bits=False,
         )
 
         self.amp = blocks.multiply_const_cc(1)

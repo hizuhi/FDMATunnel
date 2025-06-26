@@ -88,10 +88,26 @@ class receive_path(gr.hier_block2):
         self.probe = analog.probe_avg_mag_sqrd_c(thresh, alpha)
 
         # Create modern OFDM receiver
+        # self.ofdm_rx = digital.ofdm_rx(
+        #     fft_len=fft_len,
+        #     cp_len=cp_len,
+        #     packet_length_tag_key="packet_length",
+        # )
+
         self.ofdm_rx = digital.ofdm_rx(
             fft_len=fft_len,
-            cp_len=cp_len,
-            packet_length_tag_key="packet_length",
+            cp_len=(fft_len // 4),
+            frame_length_tag_key="frame_" + "rx_len",
+            packet_length_tag_key="rx_len",
+            occupied_carriers=((-4, -3, -2, -1, 1, 2, 3, 4),),
+            pilot_carriers=((-6, -5, 5, 6),),
+            pilot_symbols=((-1, 1, -1, 1),),
+            sync_word1=None,
+            sync_word2=None,
+            bps_header=1,
+            bps_payload=2,
+            debug_log=False,
+            scramble_bits=False,
         )
 
         # Create callback sink
