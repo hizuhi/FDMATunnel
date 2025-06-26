@@ -143,21 +143,33 @@ class transmit_path(gr.hier_block2):
             metavar="AMPL",
             help="set transmitter digital amplitude: 0 <= AMPL < 1.0 [default=%default]",
         )
-        normal.add_option(
-            "-W",
-            "--bandwidth",
-            type="eng_float",
-            default=500e3,
-            help="set symbol bandwidth [default=%default]",
-        )
-        normal.add_option("-v", "--verbose", action="store_true", default=False)
-        expert.add_option(
-            "",
-            "--log",
-            action="store_true",
-            default=False,
-            help="Log all parts of flow graph to file (CAUTION: lots of data)",
-        )
+        # Note: bandwidth option is shared with receive_path, so only add if not already present
+        try:
+            normal.add_option(
+                "-W",
+                "--bandwidth",
+                type="eng_float",
+                default=500e3,
+                help="set symbol bandwidth [default=%default]",
+            )
+        except Exception:
+            pass  # Option already exists, skip
+
+        try:
+            normal.add_option("-v", "--verbose", action="store_true", default=False)
+        except Exception:
+            pass  # Option already exists, skip
+
+        try:
+            expert.add_option(
+                "",
+                "--log",
+                action="store_true",
+                default=False,
+                help="Log all parts of flow graph to file (CAUTION: lots of data)",
+            )
+        except Exception:
+            pass  # Option already exists, skip
 
     # Make a static method to call before instantiation
     add_options = staticmethod(add_options)

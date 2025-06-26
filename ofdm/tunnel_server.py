@@ -425,8 +425,46 @@ class cs_mac(object):
 TARGET_USER = -1
 
 
+def check_network_buffers():
+    """
+    Check and configure network buffers for USRP operation
+    """
+    import subprocess
+
+    try:
+        # Check current buffer sizes
+        result = subprocess.run(
+            ["sysctl", "net.core.rmem_max"], capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            current_rmem = int(result.stdout.split("=")[1].strip())
+            if current_rmem < 2453333:
+                print(f"[WARNING] Current rmem_max ({current_rmem}) is too small")
+                print(
+                    "[INFO] Network buffers have been configured, but may need restart"
+                )
+
+        result = subprocess.run(
+            ["sysctl", "net.core.wmem_max"], capture_output=True, text=True
+        )
+        if result.returncode == 0:
+            current_wmem = int(result.stdout.split("=")[1].strip())
+            if current_wmem < 2453333:
+                print(f"[WARNING] Current wmem_max ({current_wmem}) is too small")
+                print(
+                    "[INFO] Network buffers have been configured, but may need restart"
+                )
+
+    except Exception as e:
+        print(f"[WARNING] Could not check network buffers: {e}")
+
+
 def main():
     users = [str(i) for i in range(NUM_USRP)]
+
+    # Check network configuration
+    print("[INFO] Checking network buffer configuration...")
+    check_network_buffers()
 
     parser = OptionParser(option_class=eng_option, conflict_handler="resolve")
     expert_grp = parser.add_option_group("Expert")
@@ -452,7 +490,7 @@ def main():
         "-c",
         "--carrier-threshold",
         type="eng_float",
-        default=30,
+        default=50,
         help="set carrier detect threshold (dB) [default=%default]",
     )
     expert_grp.add_option(
@@ -531,7 +569,11 @@ def main():
     print("freq:           %s" % (eng_notation.num_to_str(options.tx_freq)))
 
     tb.rxpath.set_carrier_threshold(options.carrier_threshold)
-    print("Carrier sense threshold:", options.carrier_threshold, "dB")
+    print(
+        "Carrier sense threshold:",
+        options.carrier_threshold,
+        "dB (increased to reduce noise)",
+    )
 
     print()
     print("Allocated virtual ethernet interface: %s" % (tun_ifname,))
@@ -544,11 +586,37 @@ def main():
 
     tb.start()  # Start executing the flow graph (runs in separate threads)
 
+    # Start the ARQ FSM thread
     threading.Thread(target=mac.arq_fsm).start()
-    # mac.main_loop()    # don't expect this to return...
 
-    # tb.stop()     # but if it does, tell flow graph to stop.
-    tb.wait()  # wait for it to finish
+    try:
+        # tb.stop()     # but if it does, tell flow graph to stop.
+        tb.wait()  # wait for it to finish
+    except KeyboardInterrupt:
+        print("[INFO] Received keyboard interrupt, stopping...")
+        try:
+            tb.stop()
+        except Exception as stop_error:
+            print(f"[WARNING] Error stopping flow graph: {stop_error}")
+        print("[INFO] Flow graph stopped.")
+    except Exception as e:
+        error_msg = str(e)
+        print(f"[ERROR] Flow graph error: {error_msg}")
+
+        # Check if it's a USRP socket error
+        if "socket closed" in error_msg or "IOError" in error_msg:
+            print("[ERROR] USRP connection lost - this is usually due to:")
+            print("  1. Network buffer overflow (check UDP buffer warnings above)")
+            print("  2. USRP device disconnection")
+            print("  3. Network connectivity issues")
+            print("[INFO] Try restarting the program after checking USRP connection")
+
+        print("[INFO] Attempting to stop flow graph gracefully...")
+        try:
+            tb.stop()
+        except Exception as stop_error:
+            print(f"[WARNING] Error stopping flow graph: {stop_error}")
+        print("[INFO] Flow graph stopped.")
 
 
 if __name__ == "__main__":

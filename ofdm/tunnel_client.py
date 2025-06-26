@@ -522,8 +522,8 @@ def main():
 
     tb.start()  # Start executing the flow graph (runs in separate threads)
 
+    # Start the ARQ FSM thread
     threading.Thread(target=mac.arq_fsm).start()
-    # mac.main_loop()    # don't expect this to return...
 
     # tb.stop()     # but if it does, tell flow graph to stop.
     tb.wait()  # wait for it to finish
